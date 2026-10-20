@@ -31,7 +31,7 @@ async function handleSubmit() {
     <div class="w-full max-w-md">
       <div class="text-center mb-8">
         <h1 class="text-3xl font-bold text-white tracking-tight">PGAEV</h1>
-        <p class="text-slate-400 mt-2">Crea tu cuenta de estudiante</p>
+        <p class="text-slate-200 mt-2">Crea tu cuenta de estudiante</p>
       </div>
 
       <form

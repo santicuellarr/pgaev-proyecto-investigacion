@@ -28,15 +28,24 @@ class NotificationService
             ->count();
     }
 
-    public function createNotification(int $userId, string $title, string $message): Notification
+    public function createNotification(int $userId, string $title, string $message, string $type = Notification::TYPE_GRADE): Notification
     {
         return Notification::create([
             'user_id' => $userId,
             'title' => $title,
             'message' => $message,
+            'type' => $type,
             'is_read' => false,
             'created_at' => now(),
         ]);
+    }
+
+    public function markAllAsRead(User $user): int
+    {
+        return Notification::query()
+            ->where('user_id', $user->id)
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
     }
 
     public function markAsRead(Notification $notification, User $user): Notification

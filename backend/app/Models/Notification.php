@@ -9,10 +9,19 @@ class Notification extends Model
 {
     public const UPDATED_AT = null;
 
+    public const TYPE_GRADE = 'grade';
+
+    public const TYPE_LEVEL = 'level';
+
+    public const TYPE_BADGE = 'badge';
+
+    public const TYPE_REDEMPTION = 'redemption';
+
     protected $fillable = [
         'user_id',
         'title',
         'message',
+        'type',
         'is_read',
         'created_at',
     ];

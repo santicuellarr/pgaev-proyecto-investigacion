@@ -31,6 +31,52 @@ class ActivityService
     }
 
     /**
+     * @param  array<string, mixed>  $data
+     */
+    public function updateActivity(Activity $activity, array $data, User $teacher): Activity
+    {
+        $activity->loadMissing('course');
+        $this->ensureTeacherOwnsCourse($activity->course, $teacher);
+
+        $activity->update([
+            'title' => $data['title'] ?? $activity->title,
+            'type' => $data['type'] ?? $activity->type,
+            'base_points' => $data['base_points'] ?? $activity->base_points,
+            'max_attempts' => $data['max_attempts'] ?? $activity->max_attempts,
+            'due_at' => array_key_exists('due_at', $data) ? $data['due_at'] : $activity->due_at,
+            'is_published' => array_key_exists('is_published', $data) ? (bool) $data['is_published'] : $activity->is_published,
+        ]);
+
+        return $activity->fresh();
+    }
+
+    public function publishActivity(Activity $activity, User $teacher, bool $published = true): Activity
+    {
+        $activity->loadMissing('course');
+        $this->ensureTeacherOwnsCourse($activity->course, $teacher);
+
+        $activity->update([
+            'is_published' => $published,
+        ]);
+
+        return $activity->fresh();
+    }
+
+    public function deleteActivity(Activity $activity, User $teacher): void
+    {
+        $activity->loadMissing('course');
+        $this->ensureTeacherOwnsCourse($activity->course, $teacher);
+
+        if ($activity->submissions()->exists()) {
+            throw ValidationException::withMessages([
+                'activity' => ['No se puede eliminar una actividad que ya tiene envíos.'],
+            ]);
+        }
+
+        $activity->delete();
+    }
+
+    /**
      * @return Collection<int, Activity>
      */
     public function getActivitiesForCourse(Course $course, User $user): Collection
@@ -66,6 +112,21 @@ class ActivityService
             ->where('user_id', $user->id)
             ->latest('submitted_at')
             ->first();
+    }
+
+    /**
+     * @return Collection<int, ActivitySubmission>
+     */
+    public function listSubmissionsForTeacher(Activity $activity, User $teacher): Collection
+    {
+        $activity->loadMissing('course');
+        $this->ensureTeacherOwnsCourse($activity->course, $teacher);
+
+        return ActivitySubmission::query()
+            ->with('user:id,name,email')
+            ->where('activity_id', $activity->id)
+            ->latest('submitted_at')
+            ->get();
     }
 
     private function ensureTeacherOwnsCourse(Course $course, User $teacher): void

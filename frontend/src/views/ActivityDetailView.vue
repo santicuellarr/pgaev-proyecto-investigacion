@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import ForumThread from '@/components/ForumThread.vue'
 import StudentAppHeader from '@/components/StudentAppHeader.vue'
 import { useActivityStore } from '@/stores/activity'
 
@@ -51,10 +52,37 @@ const badgeClass = computed(() => {
   return typeBadgeClass[type] || 'bg-slate-100 text-slate-700'
 })
 
-const aiFeedback = computed(() => activityStore.lastSubmission?.ai_feedback ?? null)
+const lastSubmission = computed(() => activityStore.lastSubmission)
+
+const isForum = computed(() => activityStore.activity?.type === 'foro')
+
+const isGraded = computed(() => lastSubmission.value?.status === 'graded')
+
+const gradedScore = computed(() => {
+  if (!isGraded.value || lastSubmission.value?.score == null) {
+    return null
+  }
+
+  return Number(lastSubmission.value.score)
+})
+
+const pointsEarned = computed(() => {
+  if (!isGraded.value || gradedScore.value == null || !activityStore.activity) {
+    return null
+  }
+
+  const maxScore = 100
+
+  return Math.round(Number(activityStore.activity.base_points) * gradedScore.value / maxScore)
+})
+
+const aiFeedback = computed(() => lastSubmission.value?.ai_feedback ?? null)
 
 onMounted(async () => {
   await activityStore.fetchActivity(activityId.value)
+  if (activityStore.activity?.type === 'foro') {
+    await activityStore.fetchForumPosts(activityId.value)
+  }
 })
 
 async function handleSubmit() {
@@ -76,6 +104,15 @@ async function handleSubmit() {
     )
   } catch {
     // El error se muestra desde activityStore.error
+  }
+}
+
+async function handleForumSubmit({ body, parentId }) {
+  activityStore.clearMessages()
+  try {
+    await activityStore.createForumPost(activityId.value, body, parentId)
+  } catch {
+    // activityStore.error
   }
 }
 </script>
@@ -137,7 +174,22 @@ async function handleSubmit() {
           </div>
         </article>
 
-        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section v-if="isForum" class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 class="text-lg font-semibold text-slate-900 mb-1">Foro del curso</h2>
+          <p class="text-sm text-slate-500 mb-4">
+            El primer aporte cuenta como participación y otorga los puntos de la actividad una sola vez.
+          </p>
+          <ForumThread
+            :posts="activityStore.forumPosts"
+            can-post
+            :submitting="activityStore.submitting"
+            :error="activityStore.error || ''"
+            :success="activityStore.success || ''"
+            @submit="handleForumSubmit"
+          />
+        </section>
+
+        <section v-else class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 class="text-lg font-semibold text-slate-900 mb-1">Tu respuesta</h2>
           <p class="text-sm text-slate-500 mb-4">
             Escribe tu respuesta y envíala antes de la fecha límite.
@@ -200,8 +252,42 @@ async function handleSubmit() {
             </button>
           </form>
 
+          <section
+            v-if="isGraded"
+            class="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-4"
+          >
+            <h3 class="text-sm font-semibold text-emerald-900">Calificación</h3>
+            <div class="flex flex-wrap gap-4 text-sm">
+              <div>
+                <p class="text-emerald-700">Nota</p>
+                <p class="mt-0.5 text-xl font-bold text-emerald-950">
+                  {{ gradedScore }} / 100
+                </p>
+              </div>
+              <div>
+                <p class="text-emerald-700">Puntos ganados</p>
+                <p class="mt-0.5 text-xl font-bold text-emerald-950">
+                  {{ pointsEarned }}
+                </p>
+              </div>
+            </div>
+            <div
+              v-if="aiFeedback"
+              class="rounded-xl border border-indigo-200 bg-indigo-50 p-4"
+            >
+              <span
+                class="mb-3 inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-700"
+              >
+                Copiloto IA
+              </span>
+              <p class="whitespace-pre-wrap text-sm leading-relaxed text-indigo-900">
+                {{ aiFeedback }}
+              </p>
+            </div>
+          </section>
+
           <div
-            v-if="aiFeedback"
+            v-else-if="aiFeedback"
             class="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 p-4"
           >
             <span

@@ -20,6 +20,8 @@ class RewardController extends Controller
 
     public function index(Request $request, Course $course): JsonResponse
     {
+        $this->authorize('view', $course);
+
         $rewards = $this->rewardService->getRewardsForCourse($course, $request->user());
 
         return response()->json([
@@ -29,6 +31,8 @@ class RewardController extends Controller
 
     public function store(CreateRewardRequest $request, Course $course): JsonResponse
     {
+        $this->authorize('create', [Reward::class, $course]);
+
         $reward = $this->rewardService->createReward(
             $request->validated(),
             $course,
@@ -40,11 +44,35 @@ class RewardController extends Controller
         ], 201);
     }
 
+    public function update(CreateRewardRequest $request, Reward $reward): JsonResponse
+    {
+        $this->authorize('update', $reward);
+
+        $updated = $this->rewardService->updateReward(
+            $reward,
+            $request->validated(),
+            $request->user(),
+        );
+
+        return response()->json([
+            'reward' => $updated,
+        ]);
+    }
+
+    public function destroy(Request $request, Reward $reward): JsonResponse
+    {
+        $this->authorize('delete', $reward);
+
+        $this->rewardService->deleteReward($reward, $request->user());
+
+        return response()->json([
+            'message' => 'Recompensa eliminada.',
+        ]);
+    }
+
     public function redeem(RedeemRewardRequest $request, Reward $reward): JsonResponse
     {
-        if ($request->user()->role !== 'student') {
-            abort(403, 'Solo los estudiantes pueden canjear recompensas.');
-        }
+        $this->authorize('redeem', $reward);
 
         $result = $this->gamificationService->redeemReward(
             $request->user()->id,

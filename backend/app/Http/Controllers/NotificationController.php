@@ -23,6 +23,16 @@ class NotificationController extends Controller
         ]);
     }
 
+    public function markAllAsRead(Request $request): JsonResponse
+    {
+        $updated = $this->notificationService->markAllAsRead($request->user());
+
+        return response()->json([
+            'updated' => $updated,
+            'unread_count' => 0,
+        ]);
+    }
+
     public function markAsRead(Request $request, Notification $notification): JsonResponse
     {
         $updatedNotification = $this->notificationService->markAsRead(

@@ -17,6 +17,7 @@ class EnrollmentAlreadyExistsException extends Exception
     {
         return response()->json([
             'message' => $this->getMessage(),
+            'errors' => [],
         ], 422);
     }
 }

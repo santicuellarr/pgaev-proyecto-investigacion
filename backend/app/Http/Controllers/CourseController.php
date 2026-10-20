@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\CreateCourseRequest;
 use App\Http\Requests\EnrollStudentRequest;
+use App\Http\Requests\UpdateCourseRequest;
+use App\Http\Requests\UpdateCourseStatusRequest;
+use App\Models\Course;
 use App\Services\CourseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,9 +28,7 @@ class CourseController extends Controller
 
     public function store(CreateCourseRequest $request): JsonResponse
     {
-        if (! in_array($request->user()->role, ['teacher', 'admin'], true)) {
-            abort(403, 'Solo los docentes pueden crear cursos.');
-        }
+        $this->authorize('create', Course::class);
 
         $course = $this->courseService->createCourse(
             $request->validated(),
@@ -41,9 +42,7 @@ class CourseController extends Controller
 
     public function enroll(EnrollStudentRequest $request): JsonResponse
     {
-        if ($request->user()->role !== 'student') {
-            abort(403, 'Solo los estudiantes pueden inscribirse a cursos.');
-        }
+        $this->authorize('enroll', Course::class);
 
         $enrollment = $this->courseService->enrollStudent(
             $request->validated('invite_code'),
@@ -54,5 +53,44 @@ class CourseController extends Controller
             'enrollment' => $enrollment->load('course'),
             'course' => $enrollment->course,
         ], 201);
+    }
+
+    public function show(Request $request, Course $course): JsonResponse
+    {
+        $this->authorize('view', $course);
+
+        return response()->json(
+            $this->courseService->getCourseDetail($course, $request->user()),
+        );
+    }
+
+    public function update(UpdateCourseRequest $request, Course $course): JsonResponse
+    {
+        $this->authorize('update', $course);
+
+        $updated = $this->courseService->updateCourse(
+            $course,
+            $request->validated(),
+            $request->user(),
+        );
+
+        return response()->json([
+            'course' => $updated,
+        ]);
+    }
+
+    public function updateStatus(UpdateCourseStatusRequest $request, Course $course): JsonResponse
+    {
+        $this->authorize('update', $course);
+
+        $updated = $this->courseService->updateStatus(
+            $course,
+            $request->validated('status'),
+            $request->user(),
+        );
+
+        return response()->json([
+            'course' => $updated,
+        ]);
     }
 }

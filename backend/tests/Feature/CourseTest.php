@@ -107,4 +107,79 @@ class CourseTest extends TestCase
 
         $this->assertDatabaseCount('enrollments', 1);
     }
+
+    public function test_teacher_can_update_own_course(): void
+    {
+        $teacher = User::factory()->create(['role' => 'teacher']);
+
+        $course = Course::create([
+            'owner_id' => $teacher->id,
+            'title' => 'Curso original',
+            'invite_code' => 'OWN123',
+            'is_active' => true,
+            'status' => 'published',
+            'color' => '#4f46e5',
+        ]);
+
+        $this->actingAs($teacher, 'sanctum')
+            ->putJson("/api/courses/{$course->id}", [
+                'title' => 'Curso actualizado',
+                'description' => 'Nueva descripción',
+                'color' => '#0f766e',
+            ])
+            ->assertOk()
+            ->assertJsonPath('course.title', 'Curso actualizado')
+            ->assertJsonPath('course.color', '#0f766e');
+
+        $this->assertDatabaseHas('courses', [
+            'id' => $course->id,
+            'title' => 'Curso actualizado',
+            'color' => '#0f766e',
+        ]);
+    }
+
+    public function test_teacher_cannot_update_another_teachers_course(): void
+    {
+        $owner = User::factory()->create(['role' => 'teacher']);
+        $otherTeacher = User::factory()->create(['role' => 'teacher']);
+
+        $course = Course::create([
+            'owner_id' => $owner->id,
+            'title' => 'Curso ajeno',
+            'invite_code' => 'AJN456',
+            'is_active' => true,
+            'status' => 'published',
+        ]);
+
+        $this->actingAs($otherTeacher, 'sanctum')
+            ->putJson("/api/courses/{$course->id}", [
+                'title' => 'Intento de hijack',
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('courses', [
+            'id' => $course->id,
+            'title' => 'Curso ajeno',
+        ]);
+    }
+
+    public function test_teacher_course_index_includes_counts(): void
+    {
+        $teacher = User::factory()->create(['role' => 'teacher']);
+
+        Course::create([
+            'owner_id' => $teacher->id,
+            'title' => 'Curso con conteos',
+            'invite_code' => 'CNT789',
+            'is_active' => true,
+            'status' => 'published',
+        ]);
+
+        $this->actingAs($teacher, 'sanctum')
+            ->getJson('/api/courses')
+            ->assertOk()
+            ->assertJsonPath('courses.0.enrolled_count', 0)
+            ->assertJsonPath('courses.0.activities_count', 0)
+            ->assertJsonPath('courses.0.pending_submissions_count', 0);
+    }
 }

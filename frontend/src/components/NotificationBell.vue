@@ -1,11 +1,32 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import CelebrationOverlay from '@/components/CelebrationOverlay.vue'
 import { useNotificationStore } from '@/stores/notification'
+
+const CELEBRATED_KEY = 'pgaev:celebrated-notifications'
+const POLL_MS = 60_000
 
 const notificationStore = useNotificationStore()
 
 const isOpen = ref(false)
 const menuRef = ref(null)
+const celebration = ref({ show: false, kind: 'level', message: '' })
+let pollTimer = null
+let celebrateTimer = null
+
+const typeLabels = {
+  grade: 'Calificación',
+  level: 'Nivel',
+  badge: 'Insignia',
+  redemption: 'Canje',
+}
+
+const typeStyles = {
+  grade: 'bg-sky-100 text-sky-800',
+  level: 'bg-amber-100 text-amber-800',
+  badge: 'bg-violet-100 text-violet-800',
+  redemption: 'bg-emerald-100 text-emerald-800',
+}
 
 const hasUnread = computed(() => notificationStore.unreadCount > 0)
 
@@ -16,6 +37,57 @@ const badgeLabel = computed(() => {
 
   return String(notificationStore.unreadCount)
 })
+
+function prefersReducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function loadCelebratedIds() {
+  try {
+    return JSON.parse(sessionStorage.getItem(CELEBRATED_KEY) || '[]')
+  } catch {
+    return []
+  }
+}
+
+function rememberCelebrated(id) {
+  const ids = loadCelebratedIds()
+  if (!ids.includes(id)) {
+    ids.push(id)
+    sessionStorage.setItem(CELEBRATED_KEY, JSON.stringify(ids))
+  }
+}
+
+function maybeCelebrate(items) {
+  const celebrated = loadCelebratedIds()
+  const pending = (items || []).find(
+    (item) =>
+      !item.is_read
+      && ['level', 'badge'].includes(item.type)
+      && !celebrated.includes(item.id),
+  )
+
+  if (!pending) {
+    return
+  }
+
+  rememberCelebrated(pending.id)
+
+  if (prefersReducedMotion()) {
+    return
+  }
+
+  celebration.value = {
+    show: true,
+    kind: pending.type,
+    message: pending.message,
+  }
+
+  window.clearTimeout(celebrateTimer)
+  celebrateTimer = window.setTimeout(() => {
+    celebration.value.show = false
+  }, 1800)
+}
 
 function toggleMenu() {
   isOpen.value = !isOpen.value
@@ -41,6 +113,14 @@ async function handleNotificationClick(notification) {
   }
 }
 
+async function handleMarkAllRead() {
+  try {
+    await notificationStore.markAllAsRead()
+  } catch {
+    // El error queda disponible en notificationStore.error
+  }
+}
+
 function formatDate(value) {
   return new Intl.DateTimeFormat('es-ES', {
     dateStyle: 'short',
@@ -48,23 +128,38 @@ function formatDate(value) {
   }).format(new Date(value))
 }
 
-onMounted(async () => {
-  document.addEventListener('click', handleDocumentClick)
-
+async function refresh({ silent = false } = {}) {
   try {
-    await notificationStore.fetchNotifications()
+    const data = await notificationStore.fetchNotifications({ silent })
+    maybeCelebrate(data.notifications)
   } catch {
     // El dropdown mostrará el estado vacío o error silenciosamente
   }
+}
+
+onMounted(async () => {
+  document.addEventListener('click', handleDocumentClick)
+  await refresh()
+  pollTimer = window.setInterval(() => {
+    refresh({ silent: true })
+  }, POLL_MS)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleDocumentClick)
+  window.clearInterval(pollTimer)
+  window.clearTimeout(celebrateTimer)
 })
 </script>
 
 <template>
   <div ref="menuRef" class="relative">
+    <CelebrationOverlay
+      :show="celebration.show"
+      :kind="celebration.kind"
+      :message="celebration.message"
+    />
+
     <button
       type="button"
       class="relative rounded-lg border border-slate-300 p-2 text-slate-600 hover:bg-slate-100 transition"
@@ -90,7 +185,8 @@ onUnmounted(() => {
 
       <span
         v-if="hasUnread"
-        class="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
+        class="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-700 px-1 text-[10px] font-bold text-white"
+        :aria-label="`${notificationStore.unreadCount} notificaciones sin leer`"
       >
         {{ badgeLabel }}
       </span>
@@ -101,11 +197,21 @@ onUnmounted(() => {
       class="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
       @click.stop
     >
-      <div class="border-b border-slate-100 px-4 py-3">
-        <h2 class="text-sm font-semibold text-slate-900">Notificaciones</h2>
-        <p class="text-xs text-slate-500">
-          {{ hasUnread ? `${notificationStore.unreadCount} sin leer` : 'Estás al día' }}
-        </p>
+      <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
+        <div>
+          <h2 class="text-sm font-semibold text-slate-900">Notificaciones</h2>
+          <p class="text-xs text-slate-500">
+            {{ hasUnread ? `${notificationStore.unreadCount} sin leer` : 'Estás al día' }}
+          </p>
+        </div>
+        <button
+          v-if="hasUnread"
+          type="button"
+          class="text-xs font-semibold text-indigo-600 hover:text-indigo-500"
+          @click="handleMarkAllRead"
+        >
+          Marcar todas como leídas
+        </button>
       </div>
 
       <div v-if="notificationStore.loading" class="px-4 py-6 text-sm text-slate-500">
@@ -140,6 +246,12 @@ onUnmounted(() => {
                 aria-hidden="true"
               />
             </div>
+            <span
+              class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+              :class="typeStyles[notification.type] || 'bg-slate-100 text-slate-600'"
+            >
+              {{ typeLabels[notification.type] || 'Aviso' }}
+            </span>
             <p class="mt-1 text-sm text-slate-600">
               {{ notification.message }}
             </p>

@@ -2,25 +2,38 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class OpenAIService
 {
-    private const DEFAULT_FEEDBACK = 'Retroalimentación pendiente de revisión docente.';
+    public function defaultFeedback(): string
+    {
+        return (string) config(
+            'services.openai.default_feedback',
+            'Retroalimentación pendiente de revisión docente.',
+        );
+    }
 
-    public function generateFeedback(string $submissionContent, string $activityTitle): string
+    public function generateFeedback(string $submissionContent, string $activityTitle, ?int $submissionId = null): string
     {
         $apiKey = config('services.openai.api_key');
+        $context = array_filter([
+            'submission_id' => $submissionId,
+        ], fn ($value) => $value !== null);
 
         if (empty($apiKey)) {
-            Log::error('OpenAI API key is not configured.');
+            Log::warning('OpenAI API key is not configured.', $context);
 
-            return self::DEFAULT_FEEDBACK;
+            return $this->defaultFeedback();
         }
 
         try {
-            $response = Http::timeout(10)
+            $timeout = max(1, (int) config('services.openai.timeout', 10));
+
+            $response = Http::timeout($timeout)
+                ->connectTimeout($timeout)
                 ->withToken($apiKey)
                 ->post('https://api.openai.com/v1/chat/completions', [
                     'model' => 'gpt-3.5-turbo',
@@ -37,21 +50,26 @@ class OpenAIService
                 ]);
 
             if ($response->failed()) {
-                Log::error('OpenAI API request failed.', [
+                Log::warning('OpenAI API request failed.', $context + [
                     'status' => $response->status(),
-                    'body' => $response->body(),
                 ]);
 
-                return self::DEFAULT_FEEDBACK;
+                return $this->defaultFeedback();
             }
 
-            return $response->json('choices.0.message.content') ?? self::DEFAULT_FEEDBACK;
-        } catch (\Throwable $exception) {
-            Log::error('OpenAI API exception.', [
+            return $response->json('choices.0.message.content') ?? $this->defaultFeedback();
+        } catch (ConnectionException $exception) {
+            Log::warning('OpenAI API timeout.', $context + [
                 'message' => $exception->getMessage(),
             ]);
 
-            return self::DEFAULT_FEEDBACK;
+            return $this->defaultFeedback();
+        } catch (\Throwable $exception) {
+            Log::warning('OpenAI API exception.', $context + [
+                'message' => $exception->getMessage(),
+            ]);
+
+            return $this->defaultFeedback();
         }
     }
 }
