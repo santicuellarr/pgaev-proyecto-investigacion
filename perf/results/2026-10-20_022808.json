@@ -1,0 +1,107 @@
+{
+    "ran_at": "2026-10-20T02:28:08+00:00",
+    "base_url": "http://127.0.0.1:8001",
+    "virtual_users": 20,
+    "duration_s": 60,
+    "goal_p95_ms": 500,
+    "goal_error_rate_max": 0.01,
+    "goal_met": false,
+    "runtime": {
+        "php": "8.4.22",
+        "os": "Windows",
+        "php_cli_server_workers": 8,
+        "fork_supported": false,
+        "k6": false,
+        "tool": "pgaev:bench"
+    },
+    "overall": {
+        "count": 645,
+        "errors": 0,
+        "error_rate": 0,
+        "p50_ms": 1621.01,
+        "p95_ms": 1972.23,
+        "p99_ms": 2116.83
+    },
+    "endpoints": {
+        "/courses": {
+            "count": 220,
+            "errors": 0,
+            "error_rate": 0,
+            "p50_ms": 1566.41,
+            "p95_ms": 1819.6,
+            "p99_ms": 1909.03
+        },
+        "/leaderboard": {
+            "count": 220,
+            "errors": 0,
+            "error_rate": 0,
+            "p50_ms": 1510.01,
+            "p95_ms": 1812.12,
+            "p99_ms": 1867.55
+        },
+        "/me/progress": {
+            "count": 152,
+            "errors": 0,
+            "error_rate": 0,
+            "p50_ms": 1834.85,
+            "p95_ms": 2073.61,
+            "p99_ms": 2134.18
+        },
+        "/analytics": {
+            "count": 53,
+            "errors": 0,
+            "error_rate": 0,
+            "p50_ms": 1682.38,
+            "p95_ms": 2038.5,
+            "p99_ms": 2114.4
+        }
+    },
+    "uncontended": {
+        "overall": {
+            "count": 80,
+            "errors": 0,
+            "error_rate": 0,
+            "p50_ms": 82.55,
+            "p95_ms": 180.61,
+            "p99_ms": 240.11
+        },
+        "endpoints": {
+            "/courses": {
+                "count": 20,
+                "errors": 0,
+                "error_rate": 0,
+                "p50_ms": 71.15,
+                "p95_ms": 180.61,
+                "p99_ms": 186.75
+            },
+            "/leaderboard": {
+                "count": 20,
+                "errors": 0,
+                "error_rate": 0,
+                "p50_ms": 72.56,
+                "p95_ms": 108.4,
+                "p99_ms": 178.48
+            },
+            "/me/progress": {
+                "count": 20,
+                "errors": 0,
+                "error_rate": 0,
+                "p50_ms": 84.17,
+                "p95_ms": 92.39,
+                "p99_ms": 101.37
+            },
+            "/analytics": {
+                "count": 20,
+                "errors": 0,
+                "error_rate": 0,
+                "p50_ms": 135.4,
+                "p95_ms": 240.11,
+                "p99_ms": 290.26
+            }
+        }
+    },
+    "notes": [
+        "En Windows el servidor CLI de PHP no hace fork: PHP_CLI_SERVER_WORKERS se ignora y los VU concurrentes se encolan en un hilo. El p95 bajo carga refleja esa cola.",
+        "uncontended es 1 cliente en serie (misma API e índices) para separar tiempo de handler de la cola del servidor."
+    ]
+}

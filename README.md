@@ -36,4 +36,5 @@ docker compose up --build
 
 SPA: `http://localhost:8080` (proxy `/api` → app). CORS: `CORS_ALLOWED_ORIGINS`.
 
-Datos de demostración (cuentas locales): `backend/README_DEMO.md`.
+Datos de demostración (cuentas locales): `backend/README_DEMO.md`.  
+Lecturas locales (k6 y resultados de bench): `perf/`.

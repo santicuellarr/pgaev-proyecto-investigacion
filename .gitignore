@@ -47,9 +47,8 @@ coverage/
 Thumbs.db
 Desktop.ini
 
-# Local notes and bench dumps (kept off the remote)
+# Local notes (kept off the remote)
 /docs/
-/perf/
 
 # Editors
 .idea/
