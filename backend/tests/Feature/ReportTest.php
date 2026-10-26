@@ -71,7 +71,31 @@ class ReportTest extends TestCase
             'graded_at' => now(),
         ]);
 
-        return compact('teacher', 'student', 'course');
+        return compact('teacher', 'student', 'course', 'activity');
+    }
+
+    /**
+     * @return array{teacher: User, student: User, second: User, course: Course, activity: Activity}
+     */
+    private function createTwoStudentContext(): array
+    {
+        $context = $this->createReportContext();
+        $second = User::factory()->create([
+            'role' => 'student',
+            'name' => 'Luis Estudiante',
+            'email' => 'luis@example.com',
+        ]);
+
+        Enrollment::create([
+            'user_id' => $second->id,
+            'course_id' => $context['course']->id,
+            'status' => 'active',
+            'enrolled_at' => now(),
+        ]);
+
+        $context['second'] = $second;
+
+        return $context;
     }
 
     public function test_export_course_csv_returns_text_csv_headers(): void
@@ -103,6 +127,91 @@ class ReportTest extends TestCase
 
         $this->actingAs($student, 'sanctum')
             ->get("/api/courses/{$course->id}/analytics/export")
+            ->assertForbidden();
+    }
+
+    public function test_analytics_json_has_expected_structure(): void
+    {
+        ['teacher' => $teacher, 'course' => $course] = $this->createReportContext();
+
+        $this->actingAs($teacher, 'sanctum')
+            ->getJson("/api/courses/{$course->id}/analytics")
+            ->assertOk()
+            ->assertJsonStructure([
+                'course' => ['id', 'title'],
+                'kpis' => [
+                    'enrolled',
+                    'average_score',
+                    'total_points',
+                    'attendance_rate',
+                    'forum_participation_rate',
+                    'redemptions_by_status' => ['pending', 'approved', 'rejected'],
+                ],
+                'completion_by_activity' => [
+                    ['activity_id', 'title', 'type', 'enrolled', 'unique_submissions', 'completion_rate'],
+                ],
+                'points_distribution' => [
+                    ['bucket', 'count'],
+                ],
+                'submissions_by_week' => [
+                    ['week_start', 'count'],
+                ],
+                'low_participation',
+                'leaderboard_top',
+                'attendance_by_session',
+                'forums',
+            ])
+            ->assertJsonPath('kpis.enrolled', 1)
+            ->assertJsonPath('kpis.average_score', 95)
+            ->assertJsonPath('kpis.total_points', 150)
+            ->assertJsonPath('completion_by_activity.0.completion_rate', 100);
+    }
+
+    public function test_completion_rate_uses_unique_students(): void
+    {
+        ['teacher' => $teacher, 'course' => $course] = $this->createTwoStudentContext();
+
+        $this->actingAs($teacher, 'sanctum')
+            ->getJson("/api/courses/{$course->id}/analytics")
+            ->assertOk()
+            ->assertJsonPath('kpis.enrolled', 2)
+            ->assertJsonPath('completion_by_activity.0.unique_submissions', 1)
+            ->assertJsonPath('completion_by_activity.0.completion_rate', 50);
+    }
+
+    public function test_csv_types_include_expected_headers(): void
+    {
+        ['teacher' => $teacher, 'course' => $course] = $this->createReportContext();
+
+        $headers = [
+            'completion' => '"Envíos únicos"',
+            'distribution' => 'Rango,Estudiantes',
+            'low_participation' => '"Completitud %"',
+            'attendance' => '"Asistencia %"',
+            'forums' => '"Participación %"',
+        ];
+
+        foreach ($headers as $type => $header) {
+            $content = $this->actingAs($teacher, 'sanctum')
+                ->get("/api/courses/{$course->id}/analytics/export?type={$type}")
+                ->assertOk()
+                ->streamedContent();
+
+            $this->assertStringContainsString($header, $content, "CSV {$type} debe incluir el encabezado esperado.");
+        }
+    }
+
+    public function test_outsider_cannot_view_course_analytics(): void
+    {
+        ['course' => $course] = $this->createReportContext();
+        $other = User::factory()->create(['role' => 'teacher']);
+
+        $this->actingAs($other, 'sanctum')
+            ->getJson("/api/courses/{$course->id}/analytics")
+            ->assertForbidden();
+
+        $this->actingAs($other, 'sanctum')
+            ->get("/api/courses/{$course->id}/analytics/export?type=completion")
             ->assertForbidden();
     }
 }

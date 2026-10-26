@@ -1,3 +1,33 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -3rem;
+  z-index: 100;
+  border-radius: 0.5rem;
+  background: #1e1b4b;
+  color: #fff;
+  padding: 0.5rem 0.75rem;
+}
+
+.skip-link:focus {
+  top: 0.75rem;
+}
+
+:focus-visible {
+  outline: 3px solid #4338ca;
+  outline-offset: 2px;
+}
+
+#contenido-principal {
+  min-height: 0;
+}
+
+@media (max-width: 360px) {
+  html {
+    font-size: 15px;
+  }
+}

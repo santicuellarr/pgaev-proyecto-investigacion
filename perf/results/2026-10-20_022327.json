@@ -1,0 +1,51 @@
+{
+    "ran_at": "2026-10-20T02:23:27+00:00",
+    "base_url": "http://127.0.0.1:8000",
+    "virtual_users": 20,
+    "duration_s": 60,
+    "goal_p95_ms": 500,
+    "goal_error_rate_max": 0.01,
+    "goal_met": false,
+    "overall": {
+        "count": 707,
+        "errors": 0,
+        "error_rate": 0,
+        "p50_ms": 1446.23,
+        "p95_ms": 1684.05,
+        "p99_ms": 1774.84
+    },
+    "endpoints": {
+        "/courses": {
+            "count": 240,
+            "errors": 0,
+            "error_rate": 0,
+            "p50_ms": 1455.44,
+            "p95_ms": 1736.11,
+            "p99_ms": 1847.99
+        },
+        "/leaderboard": {
+            "count": 240,
+            "errors": 0,
+            "error_rate": 0,
+            "p50_ms": 1397.31,
+            "p95_ms": 1645.68,
+            "p99_ms": 1735.14
+        },
+        "/me/progress": {
+            "count": 168,
+            "errors": 0,
+            "error_rate": 0,
+            "p50_ms": 1531.83,
+            "p95_ms": 1676.86,
+            "p99_ms": 1756.63
+        },
+        "/analytics": {
+            "count": 59,
+            "errors": 0,
+            "error_rate": 0,
+            "p50_ms": 1418.26,
+            "p95_ms": 1658.59,
+            "p99_ms": 1677.74
+        }
+    }
+}

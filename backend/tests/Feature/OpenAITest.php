@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Services\OpenAIService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class OpenAITest extends TestCase
@@ -79,5 +81,31 @@ class OpenAITest extends TestCase
 
         $this->assertSame('Retroalimentación pendiente de revisión docente.', $feedback);
         Http::assertNothingSent();
+    }
+
+    public function test_ai_timeout_returns_default_message_and_logs(): void
+    {
+        Config::set('services.openai.api_key', 'test-openai-key');
+        Config::set('services.openai.timeout', 2);
+
+        $logged = [];
+        Log::listen(function ($event) use (&$logged) {
+            $logged[] = $event;
+        });
+
+        Http::fake(function () {
+            throw new ConnectionException('cURL error 28: Operation timed out after 2000 milliseconds');
+        });
+
+        $service = app(OpenAIService::class);
+
+        $feedback = $service->generateFeedback('Contenido de prueba', 'Tarea 1', 42);
+
+        $this->assertSame('Retroalimentación pendiente de revisión docente.', $feedback);
+        $this->assertTrue(collect($logged)->contains(function ($event) {
+            return $event->level === 'warning'
+                && str_contains($event->message, 'OpenAI API timeout')
+                && ($event->context['submission_id'] ?? null) === 42;
+        }));
     }
 }

@@ -17,7 +17,14 @@ async function handleSubmit() {
       email: form.email,
       password: form.password,
     })
-    router.push({ name: 'home' })
+    const role = auth.user?.role
+    if (role === 'admin') {
+      router.push({ name: 'admin-dashboard' })
+    } else if (role === 'teacher') {
+      router.push({ name: 'teacher-dashboard' })
+    } else {
+      router.push({ name: 'student-dashboard' })
+    }
   } catch {
     // El mensaje de error se muestra desde auth.error
   }
@@ -29,7 +36,7 @@ async function handleSubmit() {
     <div class="w-full max-w-md">
       <div class="text-center mb-8">
         <h1 class="text-3xl font-bold text-white tracking-tight">PGAEV</h1>
-        <p class="text-slate-400 mt-2">Inicia sesión en tu cuenta</p>
+        <p class="text-slate-200 mt-2">Inicia sesión en tu cuenta</p>
       </div>
 
       <form
@@ -55,7 +62,7 @@ async function handleSubmit() {
               type="email"
               required
               autocomplete="email"
-              class="w-full rounded-lg bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+              class="w-full rounded-lg bg-slate-900/50 border border-slate-500 text-white placeholder-slate-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
               placeholder="tu@correo.com"
             />
           </div>
@@ -70,7 +77,7 @@ async function handleSubmit() {
               type="password"
               required
               autocomplete="current-password"
-              class="w-full rounded-lg bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+              class="w-full rounded-lg bg-slate-900/50 border border-slate-500 text-white placeholder-slate-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
               placeholder="••••••••"
             />
           </div>
@@ -84,9 +91,9 @@ async function handleSubmit() {
           {{ auth.loading ? 'Ingresando...' : 'Iniciar sesión' }}
         </button>
 
-        <p class="mt-6 text-center text-sm text-slate-400">
+        <p class="mt-6 text-center text-sm text-slate-200">
           ¿No tienes cuenta?
-          <RouterLink to="/register" class="text-indigo-400 hover:text-indigo-300 font-medium">
+          <RouterLink to="/register" class="text-indigo-300 hover:text-indigo-200 font-medium underline">
             Regístrate
           </RouterLink>
         </p>

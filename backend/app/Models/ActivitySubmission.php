@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ActivitySubmission extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'activity_id',
         'user_id',
@@ -18,6 +21,7 @@ class ActivitySubmission extends Model
         'submitted_at',
         'graded_at',
         'ai_feedback',
+        'teacher_feedback',
     ];
 
     protected function casts(): array

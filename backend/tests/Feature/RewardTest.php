@@ -121,4 +121,44 @@ class RewardTest extends TestCase
             'stock' => 5,
         ]);
     }
+
+    public function test_teacher_can_update_and_delete_reward_without_redemptions(): void
+    {
+        ['teacher' => $teacher, 'reward' => $reward] = $this->createRewardContext();
+
+        $this->actingAs($teacher, 'sanctum')
+            ->putJson("/api/rewards/{$reward->id}", [
+                'name' => 'Recompensa editada',
+                'cost_points' => 40,
+                'stock' => 8,
+                'needs_approval' => true,
+            ])
+            ->assertOk()
+            ->assertJsonPath('reward.name', 'Recompensa editada')
+            ->assertJsonPath('reward.needs_approval', true);
+
+        $this->actingAs($teacher, 'sanctum')
+            ->deleteJson("/api/rewards/{$reward->id}")
+            ->assertOk();
+
+        $this->assertDatabaseMissing('rewards', [
+            'id' => $reward->id,
+        ]);
+    }
+
+    public function test_teacher_cannot_delete_reward_with_redemptions(): void
+    {
+        ['teacher' => $teacher, 'student' => $student, 'reward' => $reward] = $this->createRewardContext();
+
+        $this->actingAs($student, 'sanctum')
+            ->postJson("/api/rewards/{$reward->id}/redeem", [
+                'idempotency_key' => (string) Str::uuid(),
+            ])
+            ->assertCreated();
+
+        $this->actingAs($teacher, 'sanctum')
+            ->deleteJson("/api/rewards/{$reward->id}")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['reward']);
+    }
 }

@@ -47,7 +47,15 @@
         ],
         "test": [
             "@php artisan config:clear --ansi @no_additional_args",
-            "@php artisan test"
+            "@php vendor/bin/phpunit"
+        ],
+        "test:pgsql": [
+            "@php artisan config:clear --ansi @no_additional_args",
+            "@php vendor/bin/phpunit --configuration=phpunit.pgsql.xml"
+        ],
+        "bench": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan pgaev:bench"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

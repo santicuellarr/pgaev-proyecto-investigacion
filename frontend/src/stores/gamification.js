@@ -4,6 +4,9 @@ import api from '@/services/api'
 
 export const useGamificationStore = defineStore('gamification', () => {
   const leaderboard = ref([])
+  const progress = ref(null)
+  const history = ref([])
+  const historyMeta = ref({ current_page: 1, last_page: 1, total: 0, per_page: 20 })
   const loading = ref(false)
   const error = ref(null)
 
@@ -57,13 +60,59 @@ export const useGamificationStore = defineStore('gamification', () => {
     }
   }
 
+  async function fetchProgress(courseId) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const { data } = await api.get('/me/progress', {
+        params: courseId ? { course_id: courseId } : {},
+      })
+      progress.value = data
+      return data
+    } catch (err) {
+      error.value = extractErrorMessage(err)
+      progress.value = null
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchHistory(params = {}) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const { data } = await api.get('/me/history', { params })
+      history.value = data.history
+      historyMeta.value = {
+        current_page: data.current_page,
+        last_page: data.last_page,
+        total: data.total,
+        per_page: data.per_page,
+      }
+      return data
+    } catch (err) {
+      error.value = extractErrorMessage(err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     leaderboard,
+    progress,
+    history,
+    historyMeta,
     loading,
     error,
     topThree,
     remainingEntries,
     fetchLeaderboard,
+    fetchProgress,
+    fetchHistory,
     getMyStats,
     getLevelProgress,
   }

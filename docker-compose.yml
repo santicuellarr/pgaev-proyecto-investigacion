@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: pgaev_db
+      POSTGRES_USER: pgaev
+      POSTGRES_PASSWORD: pgaev
+    volumes:
+      - pgaev_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pgaev -d pgaev_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: ./backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: http://localhost
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: pgaev_db
+      DB_USERNAME: pgaev
+      DB_PASSWORD: pgaev
+      LOG_CHANNEL: stack
+      LOG_STACK: json
+      CORS_ALLOWED_ORIGINS: http://localhost,http://127.0.0.1,http://localhost:8080
+      OPENAI_TIMEOUT: 10
+      OPENAI_QUEUE: "false"
+      PGAEV_REQUIRE_VERIFICATION: "false"
+    ports:
+      - "8000:80"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api
+    depends_on:
+      - app
+    ports:
+      - "8080:80"
+
+volumes:
+  pgaev_pg:

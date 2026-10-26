@@ -13,6 +13,14 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => Boolean(token.value))
 
+  const needsEmailVerification = computed(() => {
+    if (!user.value) {
+      return false
+    }
+
+    return !user.value.email_verified_at
+  })
+
   function persistSession(newToken, newUser) {
     token.value = newToken
     user.value = newUser
@@ -70,6 +78,21 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function resendVerification() {
+    loading.value = true
+    error.value = null
+
+    try {
+      const { data } = await api.post('/email/resend')
+      return data
+    } catch (err) {
+      error.value = extractErrorMessage(err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function logout() {
     loading.value = true
     error.value = null
@@ -92,9 +115,11 @@ export const useAuthStore = defineStore('auth', () => {
     error,
     loading,
     isAuthenticated,
+    needsEmailVerification,
     register,
     login,
     logout,
+    resendVerification,
     clearSession,
   }
 })

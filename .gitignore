@@ -1,1 +1,62 @@
-.cursor/
+# Secrets
+.env
+.env.*
+!.env.example
+!.env.testing.example
+
+# Dependencies
+node_modules/
+vendor/
+
+# Frontend build
+frontend/dist/
+frontend/dist-ssr/
+*.local
+
+# Laravel runtime
+backend/public/build
+backend/public/hot
+backend/public/storage
+backend/public/fonts-manifest.dev.json
+backend/storage/*.key
+backend/storage/pail
+backend/bootstrap/cache/*.php
+!backend/bootstrap/cache/.gitignore
+backend/auth.json
+.phpunit.result.cache
+.phpunit.cache
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local databases
+*.sqlite
+*.sqlite-*
+
+# Coverage / tests
+coverage/
+/cypress/videos/
+/cypress/screenshots/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local notes (kept off the remote)
+/docs/
+
+# Editors
+.idea/
+.vscode/
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.code-workspace

@@ -19,8 +19,10 @@ export const useNotificationStore = defineStore('notification', () => {
     return data?.message || 'No se pudieron cargar las notificaciones.'
   }
 
-  async function fetchNotifications() {
-    loading.value = true
+  async function fetchNotifications({ silent = false } = {}) {
+    if (!silent) {
+      loading.value = true
+    }
     error.value = null
 
     try {
@@ -32,7 +34,21 @@ export const useNotificationStore = defineStore('notification', () => {
       error.value = extractErrorMessage(err)
       throw err
     } finally {
-      loading.value = false
+      if (!silent) {
+        loading.value = false
+      }
+    }
+  }
+
+  async function markAllAsRead() {
+    try {
+      const { data } = await api.patch('/notifications/read-all')
+      notifications.value = notifications.value.map((item) => ({ ...item, is_read: true }))
+      unreadCount.value = data.unread_count
+      return data
+    } catch (err) {
+      error.value = extractErrorMessage(err)
+      throw err
     }
   }
 
@@ -62,5 +78,6 @@ export const useNotificationStore = defineStore('notification', () => {
     error,
     fetchNotifications,
     markAsRead,
+    markAllAsRead,
   }
 })

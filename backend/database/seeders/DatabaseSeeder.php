@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Activity;
 use App\Models\ActivitySubmission;
+use App\Models\ClassSession;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Level;
@@ -27,11 +28,22 @@ class DatabaseSeeder extends Seeder
     {
         $password = Hash::make('password');
 
+        User::create([
+            'name' => 'Admin PGAEV',
+            'email' => 'admin@pgaev.edu.co',
+            'password' => $password,
+            'role' => 'admin',
+            'is_active' => true,
+            'email_verified_at' => now(),
+            'bio' => 'Administración institucional de la PGAEV.',
+        ]);
+
         $teacher = User::create([
             'name' => 'Prof. Carlos Mendoza',
             'email' => 'docente@pgaev.edu.co',
             'password' => $password,
             'role' => 'teacher',
+            'is_active' => true,
             'email_verified_at' => now(),
             'bio' => 'Docente de Arquitectura de Software con enfoque en gamificación educativa.',
         ]);
@@ -104,6 +116,13 @@ class DatabaseSeeder extends Seeder
                 'max_attempts' => 1,
                 'due_at' => now()->addDays(21),
             ],
+            [
+                'title' => 'Foro: Patrones en la práctica',
+                'type' => 'foro',
+                'base_points' => 15,
+                'max_attempts' => 1,
+                'due_at' => now()->addDays(12),
+            ],
         ];
 
         $createdActivities = collect($activities)->map(fn (array $activity) => Activity::create([
@@ -115,6 +134,14 @@ class DatabaseSeeder extends Seeder
             'due_at' => $activity['due_at'],
             'is_published' => true,
         ]));
+
+        ClassSession::create([
+            'course_id' => $course->id,
+            'title' => 'Encuentro sincrónico 1: kickoff del curso',
+            'starts_at' => now()->addDays(2)->setTime(18, 0),
+            'duration_min' => 90,
+            'meeting_url' => 'https://meet.example.edu/pgaev-kickoff',
+        ]);
 
         Reward::create([
             'course_id' => $course->id,

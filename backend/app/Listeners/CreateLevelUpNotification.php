@@ -4,7 +4,9 @@ namespace App\Listeners;
 
 use App\Events\LevelUpEvent;
 use App\Models\Course;
+use App\Models\Notification;
 use App\Services\NotificationService;
+use Illuminate\Support\Facades\Log;
 
 class CreateLevelUpNotification
 {
@@ -25,6 +27,13 @@ class CreateLevelUpNotification
                 $event->newLevel,
                 $courseTitle,
             ),
+            Notification::TYPE_LEVEL,
         );
+
+        Log::info('user.level_up', [
+            'user_id' => $event->userId,
+            'course_id' => $event->courseId,
+            'new_level' => $event->newLevel,
+        ]);
     }
 }

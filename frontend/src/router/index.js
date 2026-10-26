@@ -13,8 +13,12 @@ function resolveDashboardRoute(user) {
     return { name: 'student-dashboard' }
   }
 
-  if (user?.role === 'teacher' || user?.role === 'admin') {
+  if (user?.role === 'teacher') {
     return { name: 'teacher-dashboard' }
+  }
+
+  if (user?.role === 'admin') {
+    return { name: 'admin-dashboard' }
   }
 
   return { name: 'login' }
@@ -30,9 +34,64 @@ const router = createRouter({
     },
     {
       path: '/teacher',
-      name: 'teacher-dashboard',
-      component: () => import('../views/TeacherDashboard.vue'),
+      component: () => import('../layouts/TeacherLayout.vue'),
       meta: { requiresAuth: true, roles: ['teacher', 'admin'] },
+      children: [
+        {
+          path: '',
+          name: 'teacher-dashboard',
+          component: () => import('../views/TeacherDashboard.vue'),
+          meta: { requiresAuth: true, roles: ['teacher', 'admin'] },
+        },
+        {
+          path: 'courses',
+          name: 'teacher-courses',
+          component: () => import('../views/TeacherCoursesView.vue'),
+          meta: { requiresAuth: true, roles: ['teacher', 'admin'] },
+        },
+        {
+          path: 'courses/:id',
+          name: 'teacher-course-detail',
+          component: () => import('../views/TeacherCourseDetailView.vue'),
+          meta: { requiresAuth: true, roles: ['teacher', 'admin'] },
+        },
+        {
+          path: 'courses/:id/students/:userId/history',
+          name: 'teacher-student-history',
+          component: () => import('../views/TeacherStudentHistoryView.vue'),
+          meta: { requiresAuth: true, roles: ['teacher', 'admin'] },
+        },
+        {
+          path: 'rewards',
+          name: 'teacher-rewards',
+          component: () => import('../views/TeacherSectionView.vue'),
+          meta: { requiresAuth: true, roles: ['teacher', 'admin'] },
+        },
+        {
+          path: 'badges',
+          name: 'teacher-badges',
+          component: () => import('../views/TeacherSectionView.vue'),
+          meta: { requiresAuth: true, roles: ['teacher', 'admin'] },
+        },
+        {
+          path: 'redemptions',
+          name: 'teacher-redemptions',
+          component: () => import('../views/TeacherRedemptionsView.vue'),
+          meta: { requiresAuth: true, roles: ['teacher', 'admin'] },
+        },
+        {
+          path: 'reports',
+          name: 'teacher-reports',
+          component: () => import('../views/TeacherReportsView.vue'),
+          meta: { requiresAuth: true, roles: ['teacher', 'admin'] },
+        },
+      ],
+    },
+    {
+      path: '/admin',
+      name: 'admin-dashboard',
+      component: () => import('../views/AdminDashboard.vue'),
+      meta: { requiresAuth: true, roles: ['admin'] },
     },
     {
       path: '/student',
@@ -50,12 +109,18 @@ const router = createRouter({
       path: '/courses/:courseId/leaderboard',
       name: 'course-leaderboard',
       component: () => import('../views/LeaderboardView.vue'),
-      meta: { requiresAuth: true, roles: ['student'] },
+      meta: { requiresAuth: true, roles: ['student', 'teacher', 'admin'] },
     },
     {
       path: '/courses/:courseId/rewards',
       name: 'course-rewards',
       component: () => import('../views/RewardsStoreView.vue'),
+      meta: { requiresAuth: true, roles: ['student'] },
+    },
+    {
+      path: '/student/history',
+      name: 'student-history',
+      component: () => import('../views/StudentHistoryView.vue'),
       meta: { requiresAuth: true, roles: ['student'] },
     },
     {

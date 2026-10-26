@@ -18,6 +18,7 @@ class GradeSubmissionRequest extends FormRequest
     {
         return [
             'score' => ['required', 'numeric', 'min:0', 'max:100'],
+            'teacher_feedback' => ['nullable', 'string'],
         ];
     }
 }

@@ -6,36 +6,28 @@ use App\Events\LevelUpEvent;
 use App\Models\ActivitySubmission;
 use App\Models\Badge;
 use App\Models\Level;
+use App\Models\Notification;
 use App\Models\PointLog;
 use App\Models\Redemption;
 use App\Models\Reward;
 use App\Models\UserBadge;
 use App\Models\UserCourseStat;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class GamificationService
 {
-    public function awardPoints(int $userId, int $courseId, int $points, string $sourceType): PointLog
-    {
-        return DB::transaction(function () use ($userId, $courseId, $points, $sourceType) {
-            $stats = UserCourseStat::firstOrCreate(
-                [
-                    'user_id' => $userId,
-                    'course_id' => $courseId,
-                ],
-                [
-                    'total_points' => 0,
-                    'current_level' => 1,
-                    'streak_days' => 0,
-                ],
-            );
+    public function __construct(
+        private readonly NotificationService $notificationService,
+    ) {}
 
-            $stats = UserCourseStat::query()
-                ->whereKey($stats->id)
-                ->lockForUpdate()
-                ->firstOrFail();
+    public function awardPoints(int $userId, int $courseId, int $points, string $sourceType, ?int $sourceId = null): PointLog
+    {
+        return DB::transaction(function () use ($userId, $courseId, $points, $sourceType, $sourceId) {
+            $stats = $this->lockCourseStats($userId, $courseId);
 
             $balanceAfter = $stats->total_points + $points;
 
@@ -47,7 +39,7 @@ class GamificationService
             $pointLog = PointLog::create([
                 'user_id' => $userId,
                 'course_id' => $courseId,
-                'source_id' => 0,
+                'source_id' => $sourceId ?? 0,
                 'source_type' => $sourceType,
                 'delta' => $points,
                 'balance_after' => $balanceAfter,
@@ -123,13 +115,33 @@ class GamificationService
 
             $reward->decrement('stock');
 
+            $needsApproval = (bool) $reward->needs_approval;
+
             $redemption = Redemption::create([
                 'user_id' => $userId,
                 'reward_id' => $reward->id,
                 'idempotency_key' => $idempotencyKey,
-                'status' => 'approved',
+                'status' => $needsApproval ? 'pending' : 'approved',
                 'redeemed_at' => now(),
-                'resolved_at' => now(),
+                'resolved_at' => $needsApproval ? null : now(),
+            ]);
+
+            $this->notificationService->createNotification(
+                $userId,
+                $needsApproval ? 'Canje pendiente' : 'Canje realizado',
+                sprintf(
+                    '%s la recompensa %s.',
+                    $needsApproval ? 'Solicitaste' : 'Canjeaste',
+                    $reward->name,
+                ),
+                Notification::TYPE_REDEMPTION,
+            );
+
+            Log::info('reward.redeemed', [
+                'redemption_id' => $redemption->id,
+                'user_id' => $userId,
+                'reward_id' => $reward->id,
+                'status' => $redemption->status,
             ]);
 
             return [
@@ -153,22 +165,46 @@ class GamificationService
             })
             ->count();
 
+        $this->ensureFirstSubmissionBadge($courseId);
+
         if ($submissionCount < 1) {
             return $awardedBadges;
         }
 
-        $badge = Badge::firstOrCreate(
-            [
-                'course_id' => $courseId,
-                'trigger_type' => 'first_submission',
-            ],
-            [
-                'name' => 'Primer Envío',
-                'description' => 'Otorgada al enviar tu primera actividad en el curso.',
-                'trigger_config' => ['event' => 'first_submission'],
-            ],
-        );
+        $stats = UserCourseStat::query()
+            ->where('user_id', $userId)
+            ->where('course_id', $courseId)
+            ->first();
 
+        $badges = Badge::query()
+            ->where(function ($query) use ($courseId) {
+                $query->where('course_id', $courseId)->orWhereNull('course_id');
+            })
+            ->get();
+
+        foreach ($badges as $badge) {
+            $ruleType = $badge->rule_type ?: $badge->trigger_type;
+
+            if ($ruleType === Badge::RULE_MANUAL) {
+                continue;
+            }
+
+            if (! $this->badgeRuleMatches($ruleType, (int) ($badge->rule_value ?? 1), $submissionCount, $stats)) {
+                continue;
+            }
+
+            $awarded = $this->grantBadge($userId, $courseId, $badge);
+
+            if ($awarded) {
+                $awardedBadges->push($awarded);
+            }
+        }
+
+        return $awardedBadges;
+    }
+
+    public function grantBadge(int $userId, int $courseId, Badge $badge): ?UserBadge
+    {
         $userBadge = UserBadge::firstOrCreate(
             [
                 'user_id' => $userId,
@@ -180,11 +216,77 @@ class GamificationService
             ],
         );
 
-        if ($userBadge->wasRecentlyCreated) {
-            $awardedBadges->push($userBadge->load('badge'));
+        if (! $userBadge->wasRecentlyCreated) {
+            return null;
         }
 
-        return $awardedBadges;
+        $this->notificationService->createNotification(
+            $userId,
+            'Nueva insignia',
+            sprintf('Obtuviste la insignia %s.', $badge->name),
+            Notification::TYPE_BADGE,
+        );
+
+        return $userBadge->load('badge');
+    }
+
+    private function ensureFirstSubmissionBadge(int $courseId): Badge
+    {
+        return Badge::firstOrCreate(
+            [
+                'course_id' => $courseId,
+                'trigger_type' => Badge::RULE_FIRST_SUBMISSION,
+            ],
+            [
+                'name' => 'Primer Envío',
+                'description' => 'Otorgada al enviar tu primera actividad en el curso.',
+                'icon' => '🥇',
+                'trigger_config' => ['event' => 'first_submission'],
+                'rule_type' => Badge::RULE_FIRST_SUBMISSION,
+                'rule_value' => 1,
+            ],
+        );
+    }
+
+    private function badgeRuleMatches(string $ruleType, int $ruleValue, int $submissionCount, ?UserCourseStat $stats): bool
+    {
+        $points = (int) ($stats?->total_points ?? 0);
+        $level = (int) ($stats?->current_level ?? 1);
+
+        return match ($ruleType) {
+            Badge::RULE_FIRST_SUBMISSION => $submissionCount >= 1,
+            Badge::RULE_SUBMISSIONS_COUNT => $submissionCount >= $ruleValue,
+            Badge::RULE_POINTS_TOTAL => $points >= $ruleValue,
+            Badge::RULE_LEVEL_REACHED => $level >= $ruleValue,
+            default => false,
+        };
+    }
+
+    private function lockCourseStats(int $userId, int $courseId): UserCourseStat
+    {
+        try {
+            $stats = UserCourseStat::firstOrCreate(
+                [
+                    'user_id' => $userId,
+                    'course_id' => $courseId,
+                ],
+                [
+                    'total_points' => 0,
+                    'current_level' => 1,
+                    'streak_days' => 0,
+                ],
+            );
+        } catch (QueryException) {
+            $stats = UserCourseStat::query()
+                ->where('user_id', $userId)
+                ->where('course_id', $courseId)
+                ->firstOrFail();
+        }
+
+        return UserCourseStat::query()
+            ->whereKey($stats->id)
+            ->lockForUpdate()
+            ->firstOrFail();
     }
 
     public function checkLevelUp(int $userId, int $courseId): bool
@@ -214,6 +316,8 @@ class GamificationService
         ]);
 
         event(new LevelUpEvent($userId, $courseId, $nextLevel->level_number));
+
+        $this->checkBadges($userId, $courseId);
 
         return true;
     }

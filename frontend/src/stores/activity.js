@@ -6,6 +6,7 @@ export const useActivityStore = defineStore('activity', () => {
   const activity = ref(null)
   const activities = ref([])
   const lastSubmission = ref(null)
+  const forumPosts = ref([])
   const loading = ref(false)
   const submitting = ref(false)
   const error = ref(null)
@@ -77,6 +78,37 @@ export const useActivityStore = defineStore('activity', () => {
     }
   }
 
+  async function fetchForumPosts(activityId) {
+    const { data } = await api.get(`/activities/${activityId}/posts`)
+    forumPosts.value = data.posts
+    return data.posts
+  }
+
+  async function createForumPost(activityId, body, parentId = null) {
+    submitting.value = true
+    error.value = null
+    success.value = null
+
+    try {
+      const { data } = await api.post(`/activities/${activityId}/posts`, {
+        body,
+        parent_id: parentId,
+      })
+      forumPosts.value = [...forumPosts.value, data.post]
+      if (data.points_awarded > 0) {
+        success.value = `Aporte publicado. +${data.points_awarded} pts por participación.`
+      } else {
+        success.value = 'Aporte publicado.'
+      }
+      return data
+    } catch (err) {
+      error.value = extractErrorMessage(err)
+      throw err
+    } finally {
+      submitting.value = false
+    }
+  }
+
   function clearMessages() {
     error.value = null
     success.value = null
@@ -86,6 +118,7 @@ export const useActivityStore = defineStore('activity', () => {
     activity,
     activities,
     lastSubmission,
+    forumPosts,
     loading,
     submitting,
     error,
@@ -93,6 +126,8 @@ export const useActivityStore = defineStore('activity', () => {
     fetchCourseActivities,
     fetchActivity,
     submitActivity,
+    fetchForumPosts,
+    createForumPost,
     clearMessages,
   }
 })

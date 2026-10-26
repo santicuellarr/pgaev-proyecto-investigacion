@@ -12,6 +12,7 @@ class Redemption extends Model
         'reward_id',
         'idempotency_key',
         'status',
+        'rejection_reason',
         'redeemed_at',
         'resolved_at',
     ];

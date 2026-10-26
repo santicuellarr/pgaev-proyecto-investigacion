@@ -37,6 +37,9 @@ return [
 
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
+        'timeout' => (int) env('OPENAI_TIMEOUT', 10),
+        'default_feedback' => env('OPENAI_DEFAULT_FEEDBACK', 'Retroalimentación pendiente de revisión docente.'),
+        'queue' => filter_var(env('OPENAI_QUEUE', false), FILTER_VALIDATE_BOOLEAN),
     ],
 
 ];

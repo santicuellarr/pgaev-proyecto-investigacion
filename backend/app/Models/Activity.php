@@ -2,12 +2,22 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Activity extends Model
 {
+    use HasFactory, SoftDeletes;
+
+    /**
+     * Puntaje máximo de la rúbrica al convertir nota en puntos del curso.
+     * No existe columna max_score; el prototipo usa 100 (misma escala que GradeSubmissionRequest).
+     */
+    public const DEFAULT_MAX_SCORE = 100;
+
     protected $fillable = [
         'course_id',
         'title',
@@ -34,5 +44,10 @@ class Activity extends Model
     public function submissions(): HasMany
     {
         return $this->hasMany(ActivitySubmission::class);
+    }
+
+    public function forumPosts(): HasMany
+    {
+        return $this->hasMany(ForumPost::class);
     }
 }
